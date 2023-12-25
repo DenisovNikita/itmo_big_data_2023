@@ -1,3 +1,5 @@
+## Запускать consumer и producer просто из idea как main()
+
 ### Kafka
 
 
