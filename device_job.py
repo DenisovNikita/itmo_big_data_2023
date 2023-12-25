@@ -7,15 +7,22 @@ from pyflink.datastream.connectors.kafka import KafkaSource, \
     KafkaOffsetsInitializer, KafkaSink, KafkaRecordSerializationSchema
 from pyflink.datastream.formats.json import JsonRowDeserializationSchema
 from pyflink.datastream.functions import MapFunction
+from pyflink.common import Configuration
 
 
 def python_data_stream_example():
-    env = StreamExecutionEnvironment.get_execution_environment()
+    config = Configuration()
+    config.set_string("state.checkpoint-storage", "filesystem")
+    config.set_string("state.checkpoints.dir", "file:///opt/pyflink/tmp/checkpoints/logs")
+
+    env = StreamExecutionEnvironment.get_execution_environment(config)
     # Set the parallelism to be one to make sure that all data including fired timer and normal data
     # are processed by the same worker and the collected result would be in order which is good for
     # assertion.
     env.set_parallelism(1)
     env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+
+    env.enable_checkpointing(1000)
     
 
     type_info: RowTypeInfo = Types.ROW_NAMED(['device_id', 'temperature', 'execution_time'],
@@ -25,7 +32,7 @@ def python_data_stream_example():
 
     source = KafkaSource.builder() \
         .set_bootstrap_servers('kafka:9092') \
-        .set_topics('itmo2023') \
+        .set_topics('nvdenisov-hse-2023') \
         .set_group_id('pyflink-e2e-source') \
         .set_starting_offsets(KafkaOffsetsInitializer.earliest()) \
         .set_value_only_deserializer(json_row_schema) \
@@ -34,7 +41,7 @@ def python_data_stream_example():
     sink = KafkaSink.builder() \
         .set_bootstrap_servers('kafka:9092') \
         .set_record_serializer(KafkaRecordSerializationSchema.builder()
-                               .set_topic('itmo2023_processed')
+                               .set_topic('nvdenisov-hse-2023-processed')
                                .set_value_serialization_schema(SimpleStringSchema())
                                .build()
                                ) \
