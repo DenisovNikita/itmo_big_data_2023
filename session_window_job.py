@@ -55,8 +55,7 @@ def python_data_stream_example():
 
     ds = env.from_source(source, WatermarkStrategy.no_watermarks(), "Kafka Source")
 
-    ds.window_all(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
-        .map(TemperatureFunction(), Types.STRING()) \
+    ds = ds.window_all(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
         .reduce(MaxReducer) \
         .sink_to(sink)
 
@@ -68,8 +67,20 @@ class MaxReducer(ReduceFunction):
     def reduce(self, v1, v2):
         return max(v1, v2, key=lambda x: x.temperature)
 
+class MaxWindowFunction(AllWindowFunction):
 
-class TemperatureFunction(MapFunction):
+    def apply(self, window, vals, out):
+        max_value = float('-inf')
+        for val in vals:
+            max_value = max(max_value, val[1])
+        window_start = window.start
+        window_end = window.end
+        out.collect((window_start, window_end, max_value))
+
+
+
+
+class IdFunction(MapFunction):
 
     def map(self, value):
         device_id, temperature, execution_time = value
