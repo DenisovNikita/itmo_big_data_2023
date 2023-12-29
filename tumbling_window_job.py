@@ -56,8 +56,8 @@ def python_data_stream_example():
     ds = env.from_source(source, WatermarkStrategy.no_watermarks(), "Kafka Source")
 
     ds.window_all(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
-        .map(TemperatureFunction(), Types.STRING()) \
         .reduce(MaxReducer) \
+        .map(TemperatureFunction(), Types.STRING()) \
         .sink_to(sink)
 
     env.execute_async("Devices preprocessing")
