@@ -9,6 +9,7 @@ from pyflink.datastream.connectors.kafka import KafkaSource, \
 from pyflink.datastream.formats.json import JsonRowDeserializationSchema
 from pyflink.datastream.functions import MapFunction
 from pyflink.common import Configuration
+from pyflink.datastream.functions import MapFunction, ReduceFunction
 from pyflink.datastream.window import TumblingProcessingTimeWindows
 from pyflink.datastream.functions import AggregateFunction, AllWindowFunction
 
@@ -41,11 +42,6 @@ def python_data_stream_example():
         .set_value_only_deserializer(json_row_schema) \
         .build()
 
-    ds = env.from_source(source, WatermarkStrategy.no_watermarks(), "Kafka Source")
-
-    ds = ds.window_all(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
-        .apply(MaxWindowFunction)
-
 
     sink = KafkaSink.builder() \
         .set_bootstrap_servers('kafka:9092') \
@@ -57,30 +53,19 @@ def python_data_stream_example():
         .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
         .build()
 
-    ds.map(IdFunction(), Types.STRING()) \
+    ds = env.from_source(source, WatermarkStrategy.no_watermarks(), "Kafka Source")
+
+    ds = ds.window_all(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
+        .reduce(MaxReducer) \
         .sink_to(sink)
+
     env.execute_async("Devices preprocessing")
 
 
-class MaxAggregateFunction(AggregateFunction):
+class MaxReducer(ReduceFunction):
 
-    def create_accumulator(self):
-        return float('-inf')
-
-    def add(self, value, accumulator):
-        return max(value, accumulator)
-
-    def get_result(self, accumulator):
-        return accumulator
-
-    def merge(self, a, b):
-        return max(a, b)
-
-    def get_accumulator_type(self):
-        return Types.FLOAT()
-
-    def get_result_type(self):
-        return Types.FLOAT()
+    def reduce(self, v1, v2):
+        return max(v1, v2, key=lambda x: x.temperature)
 
 class MaxWindowFunction(AllWindowFunction):
 
@@ -98,9 +83,8 @@ class MaxWindowFunction(AllWindowFunction):
 class IdFunction(MapFunction):
 
     def map(self, value):
-        return value
-        # device_id, temperature, execution_time = value
-        # return str({"device_id": device_id, "temperature": temperature - 273, "execution_time": execution_time})
+        device_id, temperature, execution_time = value
+        return str({"device_id": device_id, "temperature": temperature - 273, "execution_time": execution_time})
 
 
 if __name__ == '__main__':
