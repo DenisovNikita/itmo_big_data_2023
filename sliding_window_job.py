@@ -56,7 +56,7 @@ def python_data_stream_example():
 
     ds = env.from_source(source, WatermarkStrategy.no_watermarks(), "Kafka Source")
 
-    ds.window_all((SlidingProcessingTimeWindows.of(size=Time.seconds(5), slide=Time.seconds(1))) \
+    ds.window_all((SlidingProcessingTimeWindows.of(size=Time.seconds(5), slide=Time.seconds(1)))) \
         .map(TemperatureFunction(), Types.STRING()) \
         .reduce(MaxReducer) \
         .sink_to(sink)
